@@ -1,0 +1,62 @@
+name: ESP32 UART Firmware Validation
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  uart-validation:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      # ----------------------------
+      # Arduino CLI Setup
+      # ----------------------------
+
+      - name: Check Arduino CLI
+        run: .\arduino-cli.exe version
+
+      - name: Update Core Index
+        run: .\arduino-cli.exe core update-index
+
+      - name: Install ESP32 Core
+        run: .\arduino-cli.exe core install esp32:esp32
+
+      # ----------------------------
+      # Compile & Flash Sender
+      # ----------------------------
+
+      - name: Compile Sender
+        run: .\arduino-cli.exe compile --fqbn esp32:esp32:esp32 sender
+
+      - name: Flash Sender (COM6)
+        run: .\arduino-cli.exe upload -p COM6 --fqbn esp32:esp32:esp32 sender
+
+      # ----------------------------
+      # Compile & Flash Receiver
+      # ----------------------------
+
+      - name: Compile Receiver
+        run: .\arduino-cli.exe compile --fqbn esp32:esp32:esp32 receiver
+
+      - name: Flash Receiver (COM7)
+        run: .\arduino-cli.exe upload -p COM7 --fqbn esp32:esp32:esp32 receiver
+
+      # ----------------------------
+      # Python & Robot Setup
+      # ----------------------------
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyserial robotframework
+
+      # ----------------------------
+      # Run UART Validation Test
+      # ----------------------------
+
+      - name: Run Robot Test
+        run: robot uart_test.robot
