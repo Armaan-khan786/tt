@@ -2,43 +2,59 @@ import serial
 import time
 import sys
 
-PORT = "COM7"       # Receiver USB port
+PORT = "COM7"
 BAUD = 115200
 TIMEOUT = 30
+
+EXPECTED_FIRST = "ESP32 Power ON"
+EXPECTED_LAST = "System Ready"
+EXPECTED_COUNT = 100
 
 print("Opening Serial Port...")
 
 try:
     ser = serial.Serial(PORT, BAUD, timeout=1)
 except Exception as e:
-    print(f"Failed to open serial port: {e}")
+    print(f"Port Error: {e}")
     sys.exit(1)
 
-time.sleep(3)
+time.sleep(5)
 
-print("Starting UART Firmware Validation...\n")
+print("Starting UART Validation...\n")
 
-message_count = 0
+messages = []
 start_time = time.time()
 
-while message_count < 100:
+while len(messages) < EXPECTED_COUNT:
 
     if time.time() - start_time > TIMEOUT:
-        print("Timeout! Did not receive 100 messages.")
+        print("Timeout occurred.")
         ser.close()
         sys.exit(1)
 
     line = ser.readline().decode(errors="ignore").strip()
 
     if line:
-        print(line)
-        message_count += 1
+        print("RX:", line)
+        messages.append(line)
 
 ser.close()
 
-if message_count == 100:
-    print("\nSUCCESS: Received 100 messages.")
-    sys.exit(0)
-else:
-    print("\nFAILED: Message count mismatch.")
+print("\nValidating Data...")
+
+# ---- VERDICT LOGIC ----
+
+if len(messages) != EXPECTED_COUNT:
+    print("FAIL: Message count mismatch.")
     sys.exit(1)
+
+if messages[0] != EXPECTED_FIRST:
+    print("FAIL: First message mismatch.")
+    sys.exit(1)
+
+if messages[-1] != EXPECTED_LAST:
+    print("FAIL: Last message mismatch.")
+    sys.exit(1)
+
+print("PASS: UART Firmware Validation Successful.")
+sys.exit(0)
